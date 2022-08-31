@@ -46,7 +46,7 @@ WinMTR
 
 ## TODO
 
-- Phase: Hackathaon - based on Azure script
+- Phase 1: Hackathaon - based on Azure script
   - [ ] Architect Design
   - [ ] Create a fixed resource group
   - [ ] Create a fixed VNet
@@ -54,6 +54,8 @@ WinMTR
   - [ ] Create a Linux VM (Based on Ubuntu 20.04 Minimal LTS)in `vnet-repair-brazil-south-999`
     - [ ] Pre-install Linux toolbox
     - [ ] Post-upgrade Linux toolbox based on ansible-playbook
+
+- Phase 2:
   - [ ] Create a Windows VM (Based on [smalldisk] Windows Server 2022 Datacenter: Azure Edition Core
 ) in `vnet-repair-brazil-south-999`
     - [ ] Pre-install Windows packages
