@@ -17,10 +17,12 @@ set -x
 
 SUBSCRIPTION_NAME="airs-for-pinhuang"
 LOCATION="eastus"
-RESOURCEGROUP="rg-lab"
-VNET_NAME="vnet-lab-eastus"
-VM_SUBNET_NAME="subnet-lab-eastus"
-VM_NAME="vm-aro-win"
+RESOURCEGROUP="rg-aro"
+VNET_NAME="vnet-pinhuang-cluster"
+VNET_CIDR="10.10.10.0/24"
+REPAIRMAN_CIDR="10.10.10.64/27"
+REPAIRMAN_SUBNET_NAME="subnet-lab-eastus"
+VM_NAME="vm-pinhuang-win"
 USERNAME="repairman"
 PASSWORD="Lyc0r!sRec0il"
 
@@ -33,8 +35,20 @@ PASSWORD="Lyc0r!sRec0il"
 ####### START - SCRIPT #######
 ##############################
 
-az group create --name $RESOURCEGROUP \
-  --location $LOCATION
+# az group create --name $RESOURCEGROUP \
+#   --location $LOCATION
+
+az network vnet update \
+  --resource-group $RESOURCEGROUP \
+  --name $VNET_NAME \
+  --address-prefixes $VNET_CIDR
+
+az network vnet subnet update \
+  --resource-group $RESOURCEGROUP \
+  --vnet-name $VNET_NAME \
+  --name $REPAIRMAN_SUBNET_NAME \
+  --address-prefixes $REPAIRMAN_CIDR \
+  --service-endpoints Microsoft.ContainerRegistry
 
 #
 # Create Win2022AzureEditionCore VM
@@ -51,7 +65,7 @@ time az vm create \
   --admin-password $PASSWORD \
   --storage-sku os=StandardSSD_LRS \
   --vnet-name $VNET_NAME \
-  --subnet $VM_SUBNET_NAME \
+  --subnet $REPAIRMAN_SUBNET_NAME \
   --nic-delete-option delete \
   --os-disk-delete-option delete \
   --public-ip-address pip-$VM_NAME \
@@ -76,6 +90,8 @@ time az vm run-command invoke \
 # 1m2.851s
 #
 
+# XXX: This command will fail, but it's ok.
+
 az vm run-command invoke \
   --resource-group $RESOURCEGROUP \
   --name $VM_NAME \
@@ -90,9 +106,6 @@ sleep 30
 az vm restart \
   --resource-group $RESOURCEGROUP \
   --name $VM_NAME
-
-
-# TODO: Ansible for Day 2 Operations
 
 #
 # Change Font Size
@@ -113,6 +126,21 @@ az vm restart \
 #   --name $VM_NAME \
 #   --command-id RunPowerShellScript \
 #   --scripts "wsl -- apt update -y; wsl -- apt upgrade -y; wsl -- apt install -y git vim mtr; wsl -- apt autoremove -y"
+
+#
+# Enable ICMP v4 and v6
+#
+az vm run-command invoke \
+  --resource-group $RESOURCEGROUP \
+  --name $VM_NAME \
+  --command-id RunPowerShellScript \
+  --scripts "netsh advfirewall firewall add rule name="ICMP Allow incoming V4 echo request" protocol="icmpv4:8,any" dir=in action=allow"
+
+az vm run-command invoke \
+  --resource-group $RESOURCEGROUP \
+  --name $VM_NAME \
+  --command-id RunPowerShellScript \
+  --scripts "netsh advfirewall firewall add rule name="ICMP Allow incoming V6 echo request" protocol="icmpv6:8,any" dir=in action=allow"
 
 #
 # Obtain Public IP
