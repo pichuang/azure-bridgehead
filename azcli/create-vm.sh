@@ -16,13 +16,13 @@ set -x
 ##############################
 
 SUBSCRIPTION_NAME="airs-for-pinhuang"
-LOCATION="eastus"
-RESOURCEGROUP="rg-aro"
-VNET_NAME="vnet-pinhuang-cluster"
+LOCATION="japaneast"
+RESOURCEGROUP="rg-devopsday"
+VNET_NAME="vnet-zz-cluster"
 VNET_CIDR="10.10.10.0/24"
 REPAIRMAN_CIDR="10.10.10.64/27"
-REPAIRMAN_SUBNET_NAME="subnet-lab-eastus"
-VM_NAME="vm-pinhuang-win"
+REPAIRMAN_SUBNET_NAME="subnet-lab-japanwest"
+VM_NAME="vm-zz-win"
 USERNAME="repairman"
 PASSWORD="Lyc0r!sRec0il"
 
@@ -38,12 +38,12 @@ PASSWORD="Lyc0r!sRec0il"
 # az group create --name $RESOURCEGROUP \
 #   --location $LOCATION
 
-az network vnet update \
+az network vnet create \
   --resource-group $RESOURCEGROUP \
   --name $VNET_NAME \
   --address-prefixes $VNET_CIDR
 
-az network vnet subnet update \
+az network vnet subnet create \
   --resource-group $RESOURCEGROUP \
   --vnet-name $VNET_NAME \
   --name $REPAIRMAN_SUBNET_NAME \
@@ -97,6 +97,33 @@ az vm run-command invoke \
   --name $VM_NAME \
   --command-id RunPowerShellScript \
   --scripts "wsl --install -d Ubuntu-20.04"
+
+
+
+
+# Install the OpenSSH Server
+az vm run-command invoke \
+  --resource-group $RESOURCEGROUP \
+  --name $VM_NAME \
+  --command-id RunPowerShellScript \
+  --scripts "Add-WindowsCapability -Online -Name OpenSSH.Server~~~~"
+
+
+# Start the OpenSSH Server
+az vm run-command invoke \
+  --resource-group $RESOURCEGROUP \
+  --name $VM_NAME \
+  --command-id RunPowerShellScript \
+  --scripts "Start-Service sshd  -StartupType 'Automatic'"
+
+# Confirm the Firewall rule is configured. It should be created automatically by setup. Run the following to verify
+az vm run-command invoke \
+  --resource-group $RESOURCEGROUP \
+  --name $VM_NAME \
+  --command-id RunPowerShellScript \
+  --scripts "Get-NetFirewallRule -DisplayName 'OpenSSH Server (sshd)'"
+
+
 
 sleep 30
 

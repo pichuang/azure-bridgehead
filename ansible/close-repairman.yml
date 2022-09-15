@@ -1,0 +1,12 @@
+---
+- name: Remove Project repairman
+  hosts: localhost
+  collections:
+    - azure.azcollection
+  tasks:
+    - name: Delete a resource group
+      azure_rm_resourcegroup:
+        name: rg-repairman
+        location: eastus
+        state: absent
+        force_delete_nonempty: yes

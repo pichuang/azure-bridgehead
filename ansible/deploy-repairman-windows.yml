@@ -1,0 +1,117 @@
+---
+- name: Deploy Project repairman
+  hosts: localhost
+  collections:
+    - azure.azcollection
+  tasks:
+    - name: Create Resource Group
+      azure_rm_resourcegroup:
+        name: rg-repairman
+        location: eastus
+        state: present
+        tags:
+          purpose: bastion
+
+    - name: Create VNET
+      azure_rm_virtualnetwork:
+        resource_group: rg-repairman
+        location: eastus
+        name: vnet-repairman-eastus
+        state: present
+        address_prefixes_cidr:
+            - "10.99.99.0/24"
+
+    - name: Create Subnet
+      azure_rm_subnet:
+        resource_group: rg-repairman
+        virtual_network_name: vnet-repairman-eastus
+        name: subnet-repairman-eastus
+        address_prefix_cidr: "10.99.99.0/27"
+
+    - name: Create PIP
+      azure_rm_publicipaddress:
+        resource_group: rg-repairman
+        allocation_method: Static
+        name: pip-repairman-eastus
+        domain_name: repairman-eastus
+        state: present
+
+    - name: Create a Network Security Group and Open RDP and SSH port
+      azure_rm_securitygroup:
+        resource_group: rg-repairman
+        name: nsg-repairman-eastus
+        rules:
+          - name: RDP
+            protocol: Tcp
+            destination_port_range: 3389
+            access: Allow
+            priority: 100
+            direction: Inbound
+          - name: SSH
+            protocol: Tcp
+            destination_port_range: 22
+            access: Allow
+            priority: 101
+            direction: Inbound
+
+    - name: Create a virtual network interface card with public IP address and private IP address
+      azure_rm_networkinterface:
+        resource_group: rg-repairman
+        name: nic-windows2022
+        virtual_network: vnet-repairman-eastus
+        subnet: subnet-repairman-eastus
+        ip_configurations:
+          - name: default
+            primary: True
+            public_ip_address_name: pip-repairman-eastus
+            public_ip_allocation_method: Static
+            private_ip_allocation_method: Dynamic
+            private_ip_address_version: IPv4
+        security_group: nsg-repairman-eastus
+
+    - name: Create Windows VM
+      azure_rm_virtualmachine:
+        resource_group: rg-repairman
+        location: eastus
+        name: vm-windows2022
+        state: present
+        vm_size: Standard_D2s_v3
+        admin_username: "repairman"
+        admin_password: "Lyc0r!sRec0il"
+        managed_disk_type: StandardSSD_LRS
+        image:
+          offer: WindowsServer
+          publisher: MicrosoftWindowsServer
+          sku: 2022-Datacenter
+          version: latest
+        virtual_network_name: vnet-repairman-eastus
+        subnet_name: subnet-repairman-eastus
+        open_ports: 3389
+        os_type: Windows
+        license_type: Windows_Server
+        boot_diagnostics:
+          enabled: no
+        remove_on_absent: all
+        public_ip_allocation_method: Static
+        network_interfaces: nic-windows2022
+
+    - name: Allow ICMP
+      ansible.builtin.shell: "/usr/bin/az vm run-command invoke --resource-group rg-repairman --name vm-windows2022 --command-id RunPowerShellScript --scripts {{ item }}"
+      with_items:
+        - netsh advfirewall firewall add rule name="ICMP Allow incoming V4 echo request" protocol="icmpv4:8,any" dir=in action=allow
+        - netsh advfirewall firewall add rule name="ICMP Allow incoming V6 echo request" protocol="icmpv6:8,any" dir=in action=allow
+
+    - name: Install WSL2 for Ubuntu 20.04
+      ansible.builtin.shell: /usr/bin/az vm run-command invoke --resource-group rg-repairman --name vm-windows2022 --command-id RunPowerShellScript --scripts "{{ item }}"
+      with_items:
+        - "wsl --install -d Ubuntu-20.04"
+        - "wsl -- apt update -y"
+        - "wsl -- apt upgrade -y"
+        - "wsl -- apt install -y git vim mtr"
+        - "wsl -- apt autoremove -y"
+
+    - name: Restart Windows VM
+      azure_rm_virtualmachine:
+        resource_group: rg-repairman
+        name: vm-windows2022
+        restarted: yes
