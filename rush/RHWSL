@@ -1,3 +1,11 @@
+# User root
+# For WSL
+.\RHWSL.exe config --default-user root
+wsl
+
+#
+# Subscription Manager
+#
 hwclock -s
 subscription-manager register
 subscription-manager list --available > sub-list
@@ -7,31 +15,83 @@ subscription-manager repos \
   --enable=rhel-8-for-x86_64-baseos-rpms \
   --enable=rhel-8-for-x86_64-appstream-rpms \
   --enable=ansible-2.9-for-rhel-8-x86_64-rpms
-yum update
-yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
-yum install -y sudo git vim mtr tmux yum-utils htop
-yum install ansible -y --disablerepo=epel
-ansible --version
-visudo
-exit
-.\RHWSL.exe config --default-user pinhuang
-wsl
+yum install -y sudo zsh cracklib-dicts vim git mtr tmux yum-utils procps wget
+
+sudo yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+sudo yum install htop neofetch -y
+sudo bash -c $'echo "neofetch" >> /etc/profile.d/mymotd.sh && chmod +x /etc/profile.d/mymotd.sh'
+
+sudo yum-config-manager --disable epel
+sudo yum-config-manager --disable epel-modular
+
+#useradd -m -s /bin/zsh -G wheel pinhuang
+usermod -m /mnt/c/Users/pinhuang/rhwsl-home/ -s /bin/zsh -G wheel pinhuang
+passwd pinhuang
+passwd root
+
+#
+# Add systemd
+#
+#https://wsl.dev/mobyrhel8/
+
+
+#
+# Use Python3.0 as default
+#
 
 sudo yum install python3-pip
 sudo pip3 install --upgrade pip
+sudo update-alternatives --config python3
+sudo update-alternatives --config python3.9
+
+#
+# Red Hat Ansible Core
+#
+
+sudo yum install -y ansible
+ansible --version
+ansible localhost -m ping
 ansible-galaxy collection install azure.azcollection
-sudo pip3 install --user -r ~/.ansible/collections/ansible_collections/azure/azcollection/requirements-azure.txt
+pip3 install --user -r ~/.ansible/collections/ansible_collections/azure/azcollection/requirements-azure.txt
+pip3 uninstall cryptography
+pip3 install cryptography
 
+#
+# Add docker
+#
 
+sudo yum-config-manager \
+    --add-repo \
+    https://download.docker.com/linux/centos/docker-ce.repo
+sudo yum install -y docker-ce docker-ce-cli containerd.io
+vim /usr/lib/systemd/system/docker.service
+
+#
+# Red Hat Insight
+#
 sudo yum install -y insights-client hostname
-insights-client --register
+sudo insights-client --register
 
-```bash
-$ sudo insights-client --register
-Successfully registered host phil-surface.
-No loaded timers found
-Starting to collect Insights data for phil-surface.
-Uploading Insights data.
-Successfully uploaded report from phil-surface. to account 7291ddd464.
-View the Red Hat Insights console at https://console.redhat.com/insights/
-````
+#
+# Install az cli
+#
+
+sudo yum install -y https://packages.microsoft.com/config/rhel/8/packages-microsoft-prod.rpm
+sudo yum install -y azure-cli
+
+#
+# Azure Arc
+#
+
+# Azure portal - Add a server with Azure Arc
+
+#
+# kubeclt and oc
+#
+wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux.tar.gz
+tar zxvf openshift-client-linux.tar.gz
+sudo install kubectl /usr/bin/
+sudo install oc /usr/bin/
+oc version
+kubectl version
+rm kubectl oc openshift-client-linux.tar.gz README.md
