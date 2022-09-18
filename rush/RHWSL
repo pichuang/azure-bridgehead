@@ -1,0 +1,37 @@
+hwclock -s
+subscription-manager register
+subscription-manager list --available > sub-list
+subscription-manager attach --pool=<subid>
+subscription-manager repos --list > repo-list
+subscription-manager repos \
+  --enable=rhel-8-for-x86_64-baseos-rpms \
+  --enable=rhel-8-for-x86_64-appstream-rpms \
+  --enable=ansible-2.9-for-rhel-8-x86_64-rpms
+yum update
+yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+yum install -y sudo git vim mtr tmux yum-utils htop
+yum install ansible -y --disablerepo=epel
+ansible --version
+visudo
+exit
+.\RHWSL.exe config --default-user pinhuang
+wsl
+
+sudo yum install python3-pip
+sudo pip3 install --upgrade pip
+ansible-galaxy collection install azure.azcollection
+sudo pip3 install --user -r ~/.ansible/collections/ansible_collections/azure/azcollection/requirements-azure.txt
+
+
+sudo yum install -y insights-client hostname
+insights-client --register
+
+```bash
+$ sudo insights-client --register
+Successfully registered host phil-surface.
+No loaded timers found
+Starting to collect Insights data for phil-surface.
+Uploading Insights data.
+Successfully uploaded report from phil-surface. to account 7291ddd464.
+View the Red Hat Insights console at https://console.redhat.com/insights/
+````

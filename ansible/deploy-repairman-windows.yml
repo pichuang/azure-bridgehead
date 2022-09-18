@@ -3,43 +3,67 @@
   hosts: localhost
   collections:
     - azure.azcollection
+  vars:
+    project_name: "repairman"
+    location: "eastus"
+    vm_name: "windows2022"
+    vm_size: "Standard_D2s_v3" # Standard_D2s_v3 / Standard_D32s_v3
+    admin_username: "repairman"
+    # admin_password: "Lyc0r!sRec0il"
+
   tasks:
+
+    - name: Set vm_instance_name
+      set_fact:
+        vm_instance_name: "vm-{{ vm_name }}"
+
+    - name: Set resource_group
+      set_fact:
+        resource_group: "rg-{{ project_name }}"
+
+    - name: Set random password for admin_password
+      set_fact:
+        admin_password: "{{ lookup('password', '/dev/null length=15 chars=ascii_letters,digits') }}"
+
     - name: Create Resource Group
       azure_rm_resourcegroup:
-        name: rg-repairman
-        location: eastus
+        name: "{{ resource_group }}"
+        location: "{{ location }}"
         state: present
         tags:
-          purpose: bastion
+          date: "{{ ansible_date_time.date }}-{{ ansible_date_time.time }}"
+          project: "{{ project_name }}"
 
-    - name: Create VNET
+
+    - name: Create VNet
       azure_rm_virtualnetwork:
-        resource_group: rg-repairman
-        location: eastus
-        name: vnet-repairman-eastus
+        resource_group: "{{ resource_group }}"
+        location: "{{ location }}"
+        name: "vnet-{{ project_name }}-{{ location }}"
         state: present
         address_prefixes_cidr:
-            - "10.99.99.0/24"
+          - "10.99.99.0/24"
 
     - name: Create Subnet
       azure_rm_subnet:
-        resource_group: rg-repairman
-        virtual_network_name: vnet-repairman-eastus
-        name: subnet-repairman-eastus
+        resource_group: "{{ resource_group }}"
+        virtual_network_name: "vnet-{{ project_name }}-{{ location }}"
+        name: "subnet-{{ project_name }}-{{ location }}"
         address_prefix_cidr: "10.99.99.0/27"
 
     - name: Create PIP
       azure_rm_publicipaddress:
-        resource_group: rg-repairman
+        resource_group: "{{ resource_group }}"
         allocation_method: Static
-        name: pip-repairman-eastus
-        domain_name: repairman-eastus
+        name: "pip-{{ project_name }}-{{ location }}"
+        domain_name: "{{ project_name }}-{{ location }}"
         state: present
+      register: output_pip
 
     - name: Create a Network Security Group and Open RDP and SSH port
       azure_rm_securitygroup:
-        resource_group: rg-repairman
-        name: nsg-repairman-eastus
+        resource_group: "{{ resource_group }}"
+        name: "nsg-{{ project_name }}-{{ location }}"
         rules:
           - name: RDP
             protocol: Tcp
@@ -56,36 +80,36 @@
 
     - name: Create a virtual network interface card with public IP address and private IP address
       azure_rm_networkinterface:
-        resource_group: rg-repairman
-        name: nic-windows2022
-        virtual_network: vnet-repairman-eastus
-        subnet: subnet-repairman-eastus
+        resource_group: "{{ resource_group }}"
+        name: "nic-{{ vm_name }}"
+        virtual_network: "vnet-{{ project_name }}-{{ location }}"
+        subnet: "subnet-{{ project_name }}-{{ location }}"
         ip_configurations:
           - name: default
             primary: True
-            public_ip_address_name: pip-repairman-eastus
+            public_ip_address_name: "pip-{{ project_name }}-{{ location }}"
             public_ip_allocation_method: Static
             private_ip_allocation_method: Dynamic
             private_ip_address_version: IPv4
-        security_group: nsg-repairman-eastus
+        security_group: "nsg-{{ project_name }}-{{ location }}"
 
     - name: Create Windows VM
       azure_rm_virtualmachine:
-        resource_group: rg-repairman
-        location: eastus
-        name: vm-windows2022
+        resource_group: "{{ resource_group }}"
+        location: "{{ location }}"
+        name: "{{ vm_instance_name }}"
         state: present
-        vm_size: Standard_D2s_v3
-        admin_username: "repairman"
-        admin_password: "Lyc0r!sRec0il"
+        vm_size: "{{ vm_size }}"
+        admin_username: "{{ admin_username }}"
+        admin_password: "{{ admin_password }}"
         managed_disk_type: StandardSSD_LRS
         image:
           offer: WindowsServer
           publisher: MicrosoftWindowsServer
           sku: 2022-Datacenter
           version: latest
-        virtual_network_name: vnet-repairman-eastus
-        subnet_name: subnet-repairman-eastus
+        virtual_network_name: "vnet-{{ project_name }}-{{ location }}"
+        subnet_name: "subnet-{{ project_name }}-{{ location }}"
         open_ports: 3389
         os_type: Windows
         license_type: Windows_Server
@@ -93,25 +117,57 @@
           enabled: no
         remove_on_absent: all
         public_ip_allocation_method: Static
-        network_interfaces: nic-windows2022
+        network_interfaces: "nic-{{ vm_name }}"
 
-    - name: Allow ICMP
-      ansible.builtin.shell: "/usr/bin/az vm run-command invoke --resource-group rg-repairman --name vm-windows2022 --command-id RunPowerShellScript --scripts {{ item }}"
-      with_items:
-        - netsh advfirewall firewall add rule name="ICMP Allow incoming V4 echo request" protocol="icmpv4:8,any" dir=in action=allow
-        - netsh advfirewall firewall add rule name="ICMP Allow incoming V6 echo request" protocol="icmpv6:8,any" dir=in action=allow
+    # - name: Install SSH Server on Windows
+    #   ansible.builtin.shell: "/usr/bin/az vm run-command invoke --resource-group "{{ resource_group }}" --name "{{ vm_instance_name }}" --command-id RunPowerShellScript --scripts {{ item }}"
+    #   loop:
+    #     - Add-WindowsCapability -Online -Name OpenSSH.Server~~~~
+    #     - Start-Service sshd  -StartupType 'Automatic'"
+    #     - Get-NetFirewallRule -DisplayName 'OpenSSH Server (sshd)'
 
-    - name: Install WSL2 for Ubuntu 20.04
-      ansible.builtin.shell: /usr/bin/az vm run-command invoke --resource-group rg-repairman --name vm-windows2022 --command-id RunPowerShellScript --scripts "{{ item }}"
-      with_items:
-        - "wsl --install -d Ubuntu-20.04"
-        - "wsl -- apt update -y"
-        - "wsl -- apt upgrade -y"
-        - "wsl -- apt install -y git vim mtr"
-        - "wsl -- apt autoremove -y"
+    # - name: Allow ICMP / RDP (3389/tcp) / SSH (22/tcp) using New-NetFirewallRule
+    #   ansible.builtin.shell: "/usr/bin/az vm run-command invoke --resource-group {{ resource_group }} --name {{ vm_instance_name }} --command-id RunPowerShellScript --scripts \"{{ item }}\""
+    #   loop:
+    #     - New-NetFirewallRule -DisplayName "ICMP Allow incoming V4 echo request" -Direction Inbound -Action Allow -Protocol ICMPv4 -LocalAddress Any -RemoteAddress Any -ICMPType 8
+    #     - New-NetFirewallRule -DisplayName "ICMP Allow incoming V6 echo request" -Direction Inbound -Action Allow -Protocol ICMPv6 -LocalAddress Any -RemoteAddress Any -ICMPType 128
+    #     - New-NetFirewallRule -DisplayName "RDP Allow incoming V4 echo request" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 3389
+    #     - New-NetFirewallRule -DisplayName "SSH Allow incoming V4 echo request" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 22
 
-    - name: Restart Windows VM
+
+    #XXX: SOMETHING CAN NOT WORK
+    # - name: Install WSL2 for Ubuntu 20.04
+    #   ansible.builtin.shell: "/usr/bin/az vm run-command invoke --resource-group {{ resource_group }} --name {{ vm_instance_name }} --command-id RunPowerShellScript --scripts \"{{ item }}\""
+    #   loop:
+    #     - "wsl --update"
+    #     - "wsl --install -d Ubuntu-20.04"
+    #     - "wsl -- apt update -y"
+    #     - "wsl -- apt upgrade -y"
+    #     - "wsl -- apt install -y git vim mtr tmux"
+    #     - "wsl -- apt autoremove -y"
+    #   notify:
+    #     - reboot-vm
+
+    - name: Project {{ project_name }} Login Information
+      debug:
+        msg:
+          - RDP IP: "{{ output_pip.state.ip_address }}"
+          - Username: "{{ admin_username }}"
+          - Password: "{{ admin_password }}"
+
+# TODO: Test RDP Connection
+
+  handlers:
+    - name: reboot-vm
       azure_rm_virtualmachine:
-        resource_group: rg-repairman
-        name: vm-windows2022
+        resource_group: "{{ resource_group }}"
+        name: "{{ vm_instance_name }}"
         restarted: yes
+
+    - name: check-vm-firewall
+      ansible.builtin.shell: "/usr/bin/az vm run-command invoke --resource-group {{ resource_group }} --name {{ vm_instance_name }} --command-id RunPowerShellScript --scripts \"{{ item }}\""
+      loop:
+        - "Get-NetFirewallRule -DisplayName 'ICMP Allow incoming V4 echo request'"
+        - "Get-NetFirewallRule -DisplayName 'ICMP Allow incoming V6 echo request'"
+        - "Get-NetFirewallRule -DisplayName 'RDP Allow incoming V4 echo request'"
+        - "Get-NetFirewallRule -DisplayName 'SSH Allow incoming V4 echo request'"
