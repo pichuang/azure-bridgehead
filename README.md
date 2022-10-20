@@ -23,7 +23,7 @@
     - `AzureFirewallManagementSubnet` (/26 is minimal) : 10.99.98.64/26
     - `RouteServerSubnet` (/27 is minimal): 10.99.98.128/27
     - `GatewaySubnet` (/29 is minimal, /27 is best): 10.99.98.160/27
-    - `AzureBastionSubnet` (/27 is minimal, /26 is best): 10.99.98.192/26
+    - `AzureBastionSubnet` (/26 is best): 10.99.98.192/26
     - `pdns-inbound-brazil-south` (/28 is minimal, /24 is best): 10.99.98.224/28
     - `pdns-outbound-brazil-south` (/28 is minimal, /24 is best): 10.99.98.240/28
     - `vnet-repair-brazil-south-999` (/24): 10.99.99.0/24
