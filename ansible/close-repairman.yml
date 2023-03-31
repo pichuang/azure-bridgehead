@@ -1,12 +1,13 @@
 ---
-- name: Remove Project repairman
+- name: Remove Project azure-bridgehead
   hosts: localhost
+  connection: local
   collections:
     - azure.azcollection
   tasks:
     - name: Delete a resource group
       azure_rm_resourcegroup:
-        name: rg-repairman
+        name: rg-bridgehead
         location: eastus
         state: absent
         force_delete_nonempty: yes

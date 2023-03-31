@@ -25,7 +25,7 @@ sudo yum-config-manager --disable epel
 sudo yum-config-manager --disable epel-modular
 
 #useradd -m -s /bin/zsh -G wheel pinhuang
-usermod -m /mnt/c/Users/pinhuang/rhwsl-home/ -s /bin/zsh -G wheel pinhuang
+usermod -m -d /mnt/c/Users/pinhuang/rhwsl-home/ -s /bin/zsh -G wheel pinhuang
 passwd pinhuang
 passwd root
 

@@ -1,0 +1,19 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+
+packages:
+  - iputils-ping
+  - mtr
+  - git
+  - vim
+  - dnsutils
+  - python3-pip
+  - ansible
+
+runcmd:
+  - cd /home/repairman
+  - git clone https://github.com/upa/deadman
+  - chown -R "repairman:repairman" /home/repairman/deadman
+  - pip install --upgrade pip
+
