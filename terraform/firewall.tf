@@ -14,6 +14,18 @@ resource "azurerm_public_ip" "pip-fw" {
   ]
 }
 
+resource "azurerm_public_ip" "pip-fw-mgmt" {
+  name                = "pip-fw-mgmt"
+  location            = var.lab-location
+  resource_group_name = var.lab-rg
+  allocation_method   = "Static"
+  sku                 = "Standard"
+
+  depends_on = [
+    azurerm_resource_group.resource-group
+  ]
+}
+
 resource "azurerm_firewall" "firewall" {
   name                = "firewall"
   location            = var.lab-location
@@ -25,6 +37,12 @@ resource "azurerm_firewall" "firewall" {
     name                 = "fw-1-config"
     subnet_id            = azurerm_subnet.azurefirewallsubnet.id
     public_ip_address_id = azurerm_public_ip.pip-fw.id
+  }
+
+  management_ip_configuration {
+    name = "mgmt-ip-config"
+    subnet_id = azurerm_subnet.azurefirewallmanagementsubnet.id
+    public_ip_address_id = azurerm_public_ip.pip-fw-mgmt.id
   }
 
   firewall_policy_id = azurerm_firewall_policy.firewall-policy-for-bridgehead.id
@@ -43,17 +61,7 @@ resource "azurerm_firewall_policy" "firewall-policy-for-bridgehead" {
 
   threat_intelligence_mode = "Alert"
 
-  # IDPS is available only for premium policies
-  # intrusion_detection {
-  #   mode = "Alert"
-  # }
-
   base_policy_id = null
-
-  dns {
-    servers       = null
-    proxy_enabled = false
-  }
 
 }
 
@@ -68,8 +76,8 @@ resource "azurerm_firewall_policy_rule_collection_group" "fprcg-for-bridgehead" 
     action   = "Allow"
 
     rule {
-      name                  = "network-rule-icmp-any-to-any"
-      protocols             = ["ICMP"]
+      name                  = "allow-any-to-any"
+      protocols             = ["Any"]
       source_addresses      = ["*"]
       destination_addresses = ["*"]
       destination_ports     = ["*"]
@@ -85,10 +93,11 @@ resource "azurerm_firewall_policy_rule_collection_group" "fprcg-for-bridgehead" 
       name                  = "ssh-internet-to-vm"
       protocols             = ["TCP"]
       source_addresses      = ["*"]
-      destination_addresses = azurerm_public_ip.pip-fw.ip_address
+      destination_address = azurerm_public_ip.pip-fw.ip_address
       destination_ports     = ["5566"]
       translated_address    = "10.99.99.4"
       translated_port       = "22"
+    }
   }
 
   depends_on = [

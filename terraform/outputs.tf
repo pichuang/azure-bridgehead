@@ -8,5 +8,5 @@ output "admin_password" {
 }
 
 output "firewall_ip" {
-  value = azurerm_public_ip.ip-hub.ip_address
+  value = azurerm_public_ip.pip-fw.ip_address
 }

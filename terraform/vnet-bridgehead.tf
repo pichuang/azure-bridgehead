@@ -67,28 +67,6 @@ resource "azurerm_subnet" "azurebastionsubnet" {
   ]
 }
 
-resource "azurerm_subnet" "pdns-inbound" {
-  name                 = "subnet-pdns-inbound"
-  resource_group_name  = var.lab-rg
-  virtual_network_name = azurerm_virtual_network.vnet-bridgehead.name
-  address_prefixes     = ["10.99.98.224/28"]
-
-  depends_on = [
-    azurerm_virtual_network.vnet-bridgehead
-  ]
-}
-
-resource "azurerm_subnet" "pdns-outbound" {
-  name                 = "subnet-pdns-outbound"
-  resource_group_name  = var.lab-rg
-  virtual_network_name = azurerm_virtual_network.vnet-bridgehead.name
-  address_prefixes     = ["10.99.98.240/28"]
-
-  depends_on = [
-    azurerm_virtual_network.vnet-bridgehead
-  ]
-}
-
 resource "azurerm_subnet" "subnet-hub" {
   name                 = "subnet-hub"
   resource_group_name  = var.lab-rg
@@ -161,29 +139,6 @@ resource "azurerm_subnet_route_table_association" "associate-rt-to-subnet-and-su
 # Create a VM in the subnet-hub
 #
 
-# Create Network Security Group and rule
-resource "azurerm_network_security_group" "nsg-hub" {
-  name                = "nsg-hub"
-  location            = var.lab-location
-  resource_group_name = var.lab-rg
-
-  security_rule {
-    name                       = "Allow-inbound-ssh"
-    priority                   = 1001
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "22"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
-
-  depends_on = [
-    azurerm_resource_group.resource-group
-  ]
-}
-
 # Create network interface card
 resource "azurerm_network_interface" "nic-hub" {
   name                = "nic-hub"
@@ -194,14 +149,8 @@ resource "azurerm_network_interface" "nic-hub" {
     name                          = "ipconfig-nic-hub"
     subnet_id                     = azurerm_subnet.subnet-hub.id
     private_ip_address_allocation = "Static"
-    private_ip_address            = "10.73.30.164"
+    private_ip_address            = "10.99.99.4"
   }
-}
-
-# Connect the security group to the network interface
-resource "azurerm_network_interface_security_group_association" "connect-nsg-and-nic-hub" {
-  network_interface_id      = azurerm_network_interface.nic-hub.id
-  network_security_group_id = azurerm_network_security_group.nsg-hub.id
 }
 
 resource "azurerm_linux_virtual_machine" "vm-hub" {
