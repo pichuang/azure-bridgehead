@@ -25,6 +25,18 @@
 
 More info in [Visual Subnet Calculator (Azure Edition)][3]
 
+## How to use?
+
+``` bash
+terraform init
+terraform plan
+terraform apply -auto-approve
+```
+
+```bash
+terraform destroy -auto-approve
+```
+
 ## References
 
 - [Azure Resource Naming][1]
