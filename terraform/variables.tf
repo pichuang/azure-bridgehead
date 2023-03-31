@@ -18,6 +18,12 @@ variable "tags" {
   }
 }
 
+variable "vm_hub_port" {
+  description = "Port for the VM Hub"
+  type        = number
+  default     = 5566
+}
+
 variable "admin_username" {
   description = "Username for the admin account"
   type        = string

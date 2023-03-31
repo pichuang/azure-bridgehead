@@ -94,7 +94,7 @@ resource "azurerm_firewall_policy_rule_collection_group" "fprcg-for-bridgehead" 
       protocols             = ["TCP"]
       source_addresses      = ["*"]
       destination_address = azurerm_public_ip.pip-fw.ip_address
-      destination_ports     = ["5566"]
+      destination_ports     = [var.vm_hub_port]
       translated_address    = "10.99.99.4"
       translated_port       = "22"
     }
