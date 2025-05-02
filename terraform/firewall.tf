@@ -105,3 +105,37 @@ resource "azurerm_firewall_policy_rule_collection_group" "fprcg-for-bridgehead" 
   ]
 
 }
+
+# add log analytics workspace
+resource "azurerm_log_analytics_workspace" "law" {
+  name                = "law-bridgehead"
+  location            = var.lab-location
+  resource_group_name = var.lab-rg
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
+
+  depends_on = [
+    azurerm_resource_group.resource-group
+  ]
+}
+
+resource "azurerm_monitor_diagnostic_setting" "fw-diagnostic" {
+  name               = "fw-diagnostic"
+  target_resource_id = azurerm_firewall.firewall.id
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.law.id
+
+  enabled_log {
+    category = "AzureFirewallApplicationRule"
+  }
+
+  enabled_log {
+    category = "AzureFirewallNetworkRule"
+  }
+
+  enabled_log {
+    category = "AzureFirewallDnsProxy"
+  }
+
+}
+
+

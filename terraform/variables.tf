@@ -1,13 +1,13 @@
 variable "lab-rg" {
   description = "Resource Group for this lab"
   type        = string
-  default     = "rg-bridgehead-999"
+  default     = "rg-bridgehead-jpe-999"
 }
 
 variable "lab-location" {
   description = "Location for this lab"
   type        = string
-  default     = "eastus"
+  default     = "japaneast"
 }
 
 variable "tags" {
