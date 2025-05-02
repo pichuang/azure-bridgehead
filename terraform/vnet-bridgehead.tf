@@ -140,16 +140,20 @@ resource "azurerm_subnet_route_table_association" "associate-rt-to-subnet-and-su
 #
 
 # Create network interface card
+# Enable Accelerated Networking
 resource "azurerm_network_interface" "nic-hub" {
   name                = "nic-hub"
   location            = var.lab-location
   resource_group_name = var.lab-rg
+
+  accelerated_networking_enabled = true
 
   ip_configuration {
     name                          = "ipconfig-nic-hub"
     subnet_id                     = azurerm_subnet.subnet-hub.id
     private_ip_address_allocation = "Static"
     private_ip_address            = "10.99.99.4"
+
   }
 }
 
