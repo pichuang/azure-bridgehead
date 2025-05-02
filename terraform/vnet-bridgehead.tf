@@ -158,7 +158,7 @@ resource "azurerm_linux_virtual_machine" "vm-hub" {
   location              = var.lab-location
   resource_group_name   = var.lab-rg
   network_interface_ids = [azurerm_network_interface.nic-hub.id]
-  size                  = "Standard_DC2s_v3"
+  size                  = "Standard_D2s_v3"
 
   os_disk {
     name                 = "disk-vm-hub"
@@ -180,7 +180,7 @@ resource "azurerm_linux_virtual_machine" "vm-hub" {
 
   admin_ssh_key {
     username   = var.admin_username
-    public_key = file("~/.ssh/azure-rsa.pub")
+    public_key = file("~/.ssh/poc-ms.pub")
   }
 
   custom_data = filebase64("cloud-init.txt")

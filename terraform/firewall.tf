@@ -31,7 +31,7 @@ resource "azurerm_firewall" "firewall" {
   location            = var.lab-location
   resource_group_name = var.lab-rg
   sku_name            = "AZFW_VNet"
-  sku_tier            = "Basic"
+  sku_tier            = "Standard"
 
   ip_configuration {
     name                 = "fw-1-config"
@@ -57,7 +57,7 @@ resource "azurerm_firewall_policy" "firewall-policy-for-bridgehead" {
   name                = "bridgehead-firewall-policy"
   resource_group_name = var.lab-rg
   location            = var.lab-location
-  sku                 = "Basic"
+  sku                 = "Standard"
 
   threat_intelligence_mode = "Alert"
 
