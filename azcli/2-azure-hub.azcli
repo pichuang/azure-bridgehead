@@ -1,0 +1,125 @@
+#!/bin/bash
+
+# Load .env
+set -o allexport
+source .env
+set +o allexport
+
+echo "Set subscription..."
+if [ -z "$SUBSCRIPTION_ID" ]; then
+    echo "Error: SUBSCRIPTION_ID is not set in .env file."
+    exit 1
+fi
+az account set --subscription $SUBSCRIPTION_ID
+
+echo "Creating on-premise resources..."
+if az group exists --name $RESOURCE_GROUP_NAME; then
+    echo "Resource group $RESOURCE_GROUP_NAME already exists."
+else
+    echo "Creating resource group $RESOURCE_GROUP_NAME..."
+    az group create --name $RESOURCE_GROUP_NAME --location $LOCATION --output none
+fi
+
+echo "Createing Azure Hub Virtual Network..."
+az network vnet create \
+    --name vnet-hub \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --address-prefix $HUB_VNET_ADDRESS_PREFIX \
+    --subnet-name GatewaySubnet \
+    --subnet-prefix $HUB_VNET_GATEWAY_ADDRESS_PREFIX \
+    --output none
+
+echo "Creating Azure Firewall subnet..."
+az network vnet subnet create \
+    --name AzureFirewallSubnet \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --vnet-name vnet-hub \
+    --address-prefix $HUB_VNET_FIREWALL_ADDRESS_PREFIX \
+    --output none
+az network vnet subnet create \
+    --name AzureFirewallManagementSubnet \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --vnet-name vnet-hub \
+    --address-prefix $HUB_VNET_FIREWALL_MANAGEMENT_ADDRESS_PREFIX \
+    --output none
+
+echo "Creating Azure Bastion subnet..."
+az network vnet subnet create \
+    --name AzureBastionSubnet \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --vnet-name vnet-hub \
+    --address-prefix $HUB_VNET_BASTION_ADDRESS_PREFIX \
+    --output none
+
+echo "Create Public IP for VPN HUB..."
+az network public-ip create \
+    --name pip-vpn-hub \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --location $LOCATION \
+    --sku Standard \
+    --allocation-method Static \
+    --ddos-protection-mode Disabled \
+    --version IPv4 \
+    --tier Regional \
+    --output none
+
+echo "Create Virtual Network Gateway..."
+az network vnet-gateway create \
+    --name vpn-hub \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --vnet vnet-hub \
+    --public-ip-address pip-vpn-hub \
+    --gateway-type Vpn \
+    --vpn-type RouteBased \
+    --sku VpnGw1 \
+    --no-wait \
+    --output none
+
+echo "Create Public IP for Azure Firewall..."
+az network public-ip create \
+    --name pip-azfw-hub \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --location $LOCATION \
+    --sku Standard \
+    --allocation-method Static \
+    --ddos-protection-mode Disabled \
+    --version IPv4 \
+    --tier Regional \
+    --output none
+az network public-ip create \
+    --name pip-azfw-mgmt-hub \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --location $LOCATION \
+    --sku Standard \
+    --allocation-method Static \
+    --ddos-protection-mode Disabled \
+    --version IPv4 \
+    --tier Regional \
+    --output none
+
+# Query the public IP pip-vpn-hub
+PIP_VPN_HUB=$(az network public-ip show \
+    --name pip-vpn-hub \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --query ipAddress \
+    -o tsv)
+
+# Create Local Network Gateway
+az network local-gateway create \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --name lng-hub \
+    --gateway-ip-address $PIP_VPN_HUB \
+    --local-address-prefixes $HUB_VNET_ADDRESS_PREFIX,$SPOKE_VNET_ADDRESS_PREFIX \
+    --output none
+
+
+# XXX
+# echo "Creating Azure Firewall..."
+
+# az network firewall create \
+#     --resource-group $RESOURCE_GROUP_NAME \
+#     --name azfw-hub \
+#     --sku AZFW_VNet \
+#     --tier Standard \
+#     --vnet-name vnet-hub \
+#     --public-ip pip-azfw-hub

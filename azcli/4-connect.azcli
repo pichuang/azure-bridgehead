@@ -1,0 +1,57 @@
+#!/bin/bash
+
+# Load .env
+set -o allexport
+source .env
+set +o allexport
+# Peering vnet-spoke and vnet-hub
+
+VNET_HUB_ID=$(az network vnet show \
+  --name vnet-hub \
+  --resource-group $RESOURCE_GROUP_NAME \
+  --query id \
+  -o tsv)
+
+VNET_SPOKE_ID=$(az network vnet show \
+  --name vnet-spoke \
+  --resource-group $RESOURCE_GROUP_NAME \
+  --query id \
+  -o tsv)
+
+az network vnet peering create \
+    --name peer-spoke-to-hub \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --vnet-name vnet-spoke \
+    --remote-vnet $VNET_HUB_ID \
+    --allow-vnet-access \
+    --allow-forwarded-traffic \
+    --use-remote-gateways \
+    --output none
+
+az network vnet peering create \
+    --name peer-hub-to-spoke \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --vnet-name vnet-hub \
+    --remote-vnet $VNET_SPOKE_ID \
+    --allow-vnet-access \
+    --allow-forwarded-traffic \
+    --allow-gateway-transit \
+    --output none
+
+# Connect lng-onprem to vpn-hub
+az network vpn-connection create \
+    --name conn-hub-to-onprem \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --vnet-gateway1 vpn-hub \
+    --local-gateway2 lng-onprem \
+    --shared-key $VM_ADMIN_PASSWORD \
+    --output none
+
+# Connect lng-hub to vpn-onprem
+az network vpn-connection create \
+    --name conn-onprem-to-hub \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --vnet-gateway1 vpn-onprem \
+    --local-gateway2 lng-hub \
+    --shared-key $VM_ADMIN_PASSWORD \
+    --output none

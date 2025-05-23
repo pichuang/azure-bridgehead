@@ -1,0 +1,203 @@
+#!/bin/bash
+
+# Load .env
+set -o allexport
+source .env
+set +o allexport
+
+echo "Set subscription..."
+if [ -z "$SUBSCRIPTION_ID" ]; then
+    echo "Error: SUBSCRIPTION_ID is not set in .env file."
+    exit 1
+fi
+az account set --subscription $SUBSCRIPTION_ID
+
+echo "Creating on-premise resources..."
+if az group exists --name $RESOURCE_GROUP_NAME; then
+    echo "Resource group $RESOURCE_GROUP_NAME already exists."
+else
+    echo "Creating resource group $RESOURCE_GROUP_NAME..."
+    az group create --name $RESOURCE_GROUP_NAME --location $LOCATION --output none
+fi
+
+echo "Createing onprem Virtual Network..."
+az network vnet create \
+    --name vnet-onprem \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --address-prefix $ONPREM_VNET_ADDRESS_PREFIX \
+    --subnet-name GatewaySubnet \
+    --subnet-prefix $ONPREM_VNET_GATEWAY_ADDRESS_PREFIX \
+    --output none
+
+echo "Creating onprem VM subnet..."
+az network vnet subnet create \
+    --name snet-onprem-vm \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --vnet-name vnet-onprem \
+    --address-prefix $ONPREM_VNET_VM_ADDRESS_PREFIX \
+    --output none
+
+echo "Creating Network Security Group..."
+az network nsg create \
+    --name nsg-onprem \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --location $LOCATION \
+    --output none
+
+echo "Creating Network Security Group rules..."
+# Allow LOCAL_IP to SSH and ICMP into the VM
+az network nsg rule create \
+    --name allow-ssh \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --nsg-name nsg-onprem \
+    --priority 1000 \
+    --protocol Tcp \
+    --source-address-prefixes $LOCAL_IP \
+    --destination-port-range 22 \
+    --access Allow \
+    --direction Inbound \
+    --output none
+az network nsg rule create \
+    --name allow-icmp \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --nsg-name nsg-onprem \
+    --priority 1001 \
+    --protocol Icmp \
+    --source-address-prefixes $LOCAL_IP \
+    --destination-port-range 0 \
+    --access Allow \
+    --direction Inbound \
+    --output none
+# Allow any from SPOKE_VNET_ADDRESS_PREFIX to VM
+az network nsg rule create \
+    --name allow-spoke-vnet \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --nsg-name nsg-onprem \
+    --priority 1002 \
+    --protocol '*' \
+    --source-address-prefixes $SPOKE_VNET_ADDRESS_PREFIX \
+    --destination-port-ranges '*' \
+    --access Allow \
+    --direction Inbound \
+    --output none
+
+# Allow outbound traffic Local IP to Internet
+az network nsg rule create \
+    --name allow-outbound-local-ip \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --nsg-name nsg-onprem \
+    --priority 1003 \
+    --protocol '*' \
+    --source-address-prefixes $LOCAL_IP \
+    --destination-address-prefixes Internet \
+    --destination-port-ranges '*' \
+    --access Allow \
+    --direction Outbound \
+    --output none
+
+# Deny all outbound traffic to Internet
+az network nsg rule create \
+    --name deny-outbound-internet \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --nsg-name nsg-onprem \
+    --priority 1004 \
+    --protocol '*' \
+    --source-address-prefixes '*' \
+    --destination-address-prefixes Internet \
+    --destination-port-ranges '*' \
+    --access Deny \
+    --direction Outbound \
+    --output none
+
+echo "Creating onprem VM..."
+az vm create \
+    --name vm-onprem \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --image Ubuntu2404 \
+    --admin-username $VM_ADMIN_USERNAME \
+    --admin-password $VM_ADMIN_PASSWORD \
+    --subnet snet-onprem-vm \
+    --vnet-name vnet-onprem \
+    --nsg nsg-onprem \
+    --public-ip-address pip-vm-onprem \
+    --output none
+
+# Query the public IP address of the VM
+vm_public_ip=$(az network public-ip show \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --name pip-vm-onprem \
+    --query ipAddress -o tsv)
+
+echo "Create Route Table..."
+az network route-table create \
+    --name rt-onprem \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --location $LOCATION \
+    --output none
+
+echo "Create Route Table for onprem VM..."
+# az network route-table route create \
+#     --name route-to-azure \
+#     --resource-group $RESOURCE_GROUP_NAME \
+#     --route-table-name rt-onprem \
+#     --address-prefix $SPOKE_VNET_VM_ADDRESS_PREFIX \
+#     --next-hop-type VirtualNetworkGateway \
+#     --output none
+az network route-table route create \
+    --name route-to-internet \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --route-table-name rt-onprem \
+    --address-prefix ${LOCAL_IP}/32 \
+    --next-hop-type Internet \
+    --output none
+
+echo "Associate Route Table with VM subnet..."
+az network vnet subnet update \
+    --name snet-onprem-vm \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --vnet-name vnet-onprem \
+    --route-table rt-onprem \
+    --output none
+
+echo "Onpremise access..."
+echo "ssh $VM_ADMIN_USERNAME@$vm_public_ip"
+
+
+echo "Create Public IP for VPN onprem..."
+az network public-ip create \
+    --name pip-vpn-onprem \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --location $LOCATION \
+    --sku Standard \
+    --allocation-method Static \
+    --ddos-protection-mode Disabled \
+    --version IPv4 \
+    --tier Regional \
+    --output none
+
+echo "Create Virtual Network Gateway..."
+az network vnet-gateway create \
+    --name vpn-onprem \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --vnet vnet-onprem \
+    --public-ip-address pip-vpn-onprem \
+    --gateway-type Vpn \
+    --vpn-type RouteBased \
+    --sku VpnGw1 \
+    --no-wait \
+    --output none
+
+# Query the public IP pip-vpn-onprem
+PIP_VPN_ONPREM=$(az network public-ip show \
+    --name pip-vpn-onprem \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --query ipAddress \
+    -o tsv)
+
+# Create Local Network Gateway
+az network local-gateway create \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --name lng-onprem \
+    --gateway-ip-address $PIP_VPN_ONPREM \
+    --local-address-prefixes $ONPREM_VNET_ADDRESS_PREFIX \
+    --output none
