@@ -133,13 +133,16 @@ az network route-table create \
     --location $LOCATION \
     --output none
 
+AZFW_PRIVATE_IP="$(az network firewall ip-config list -g $RESOURCE_GROUP_NAME -f azfw-hub --query "[?name=='FW-config'].privateIpAddress" --output tsv)"
+
 echo "Create Route Table for spoke VM..."
 az network route-table route create \
-    --name route-to-azure \
+    --name route-to-azfw \
     --resource-group $RESOURCE_GROUP_NAME \
     --route-table-name rt-spoke \
-    --address-prefix $SPOKE_VNET_VM_ADDRESS_PREFIX \
-    --next-hop-type VirtualNetworkGateway \
+    --address-prefix 0.0.0.0/0 \
+    --next-hop-type VirtualAppliance \
+    --next-hop-ip-address $AZFW_PRIVATE_IP \
     --output none
 az network route-table route create \
     --name route-to-internet \

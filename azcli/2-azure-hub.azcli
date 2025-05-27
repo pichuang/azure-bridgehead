@@ -161,9 +161,9 @@ az network public-ip show \
     --resource-group $RESOURCE_GROUP_NAME \
     --output none
 
-fwprivaddr="$(az network firewall ip-config list -g $RESOURCE_GROUP_NAME -f azfw-hub --query "[?name=='FW-config'].privateIpAddress" --output tsv)"
+AZFW_PRIVATE_IP="$(az network firewall ip-config list -g $RESOURCE_GROUP_NAME -f azfw-hub --query "[?name=='FW-config'].privateIpAddress" --output tsv)"
 
-echo "Azure Firewall private IP address: $fwprivaddr"
+echo "Azure Firewall private IP address: $AZFW_PRIVATE_IP"
 
 az monitor log-analytics workspace create \
     -g $RESOURCE_GROUP_NAME \
