@@ -112,14 +112,57 @@ az network local-gateway create \
     --local-address-prefixes $HUB_VNET_ADDRESS_PREFIX $SPOKE_VNET_ADDRESS_PREFIX \
     --output none
 
+# Create Azure Firewall Policy
+az network firewall policy create \
+    --name azfw-policy \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --auto-learn-private-ranges \
+    --learn-ranges Disabled \
+    --enable-dns-proxy 1 \
+    --idps-mode Alert \
+    --location $LOCATION \
+    --sku Standard \
+    --output none
 
-# XXX
-# echo "Creating Azure Firewall..."
+# Create Azure Firewall
+echo "Creating Azure Firewall..."
 
-# az network firewall create \
-#     --resource-group $RESOURCE_GROUP_NAME \
-#     --name azfw-hub \
-#     --sku AZFW_VNet \
-#     --tier Standard \
-#     --vnet-name vnet-hub \
-#     --public-ip pip-azfw-hub
+az network firewall create \
+    --name azfw-hub \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --firewall-policy azfw-policy \
+    --location $LOCATION \
+    --output none
+
+az network public-ip create \
+    --name azfw-pip \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --location $LOCATION \
+    --sku Standard \
+    --allocation-method Static \
+    --ddos-protection-mode Disabled \
+    --version IPv4 \
+    --tier Regional \
+    --output none
+
+az network firewall ip-config create \
+    --firewall-name azfw-hub \
+    --name FW-config \
+    --public-ip-address azfw-pip \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --vnet-name vnet-hub \
+    --output none
+
+az network firewall update \
+    --name azfw-hub \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --output none
+
+az network public-ip show \
+    --name azfw-pip \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --output none
+
+fwprivaddr="$(az network firewall ip-config list -g $RESOURCE_GROUP_NAME -f azfw-hub --query "[?name=='FW-config'].privateIpAddress" --output tsv)"
+
+echo "Azure Firewall private IP address: $fwprivaddr"

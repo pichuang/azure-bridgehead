@@ -31,6 +31,10 @@ SPOKE_VM_PUBLIC_IP=$(az network public-ip show \
 echo "ssh $VM_ADMIN_USERNAME@$SPOKE_VM_PUBLIC_IP"
 echo
 
+echo "Firewall 資訊"
+fwprivaddr="$(az network firewall ip-config list -g $RESOURCE_GROUP_NAME -f azfw-hub --query "[?name=='FW-config'].privateIpAddress" --output tsv)"
+echo "Private IP: $fwprivaddr"
+
 echo "Password for $VM_ADMIN_USERNAME"
 echo $VM_ADMIN_PASSWORD
 echo
