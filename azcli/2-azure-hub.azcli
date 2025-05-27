@@ -184,6 +184,7 @@ az monitor diagnostic-settings create \
     ]' \
     --metrics '[
         {"category": "AllMetrics", "enabled": true, "retentionPolicy": {"enabled": false, "days": 0}}
-    ]'
+    ]' \
+    --output none
 
 

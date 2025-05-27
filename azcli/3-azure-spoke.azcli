@@ -134,6 +134,7 @@ az network route-table create \
     --output none
 
 AZFW_PRIVATE_IP="$(az network firewall ip-config list -g $RESOURCE_GROUP_NAME -f azfw-hub --query "[?name=='FW-config'].privateIpAddress" --output tsv)"
+echo "Azure Firewall Private IP: $AZFW_PRIVATE_IP"
 
 echo "Create Route Table for spoke VM..."
 az network route-table route create \
