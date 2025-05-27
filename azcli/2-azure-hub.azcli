@@ -109,7 +109,7 @@ az network local-gateway create \
     --resource-group $RESOURCE_GROUP_NAME \
     --name lng-hub \
     --gateway-ip-address $PIP_VPN_HUB \
-    --local-address-prefixes $HUB_VNET_ADDRESS_PREFIX,$SPOKE_VNET_ADDRESS_PREFIX \
+    --local-address-prefixes $HUB_VNET_ADDRESS_PREFIX $SPOKE_VNET_ADDRESS_PREFIX \
     --output none
 
 
