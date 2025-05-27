@@ -116,12 +116,10 @@ az network local-gateway create \
 az network firewall policy create \
     --name azfw-policy \
     --resource-group $RESOURCE_GROUP_NAME \
-    --auto-learn-private-ranges \
-    --learn-ranges Disabled \
     --enable-dns-proxy 1 \
-    --idps-mode Alert \
     --location $LOCATION \
     --sku Standard \
+    --no-wait false \
     --output none
 
 # Create Azure Firewall
@@ -166,3 +164,26 @@ az network public-ip show \
 fwprivaddr="$(az network firewall ip-config list -g $RESOURCE_GROUP_NAME -f azfw-hub --query "[?name=='FW-config'].privateIpAddress" --output tsv)"
 
 echo "Azure Firewall private IP address: $fwprivaddr"
+
+az monitor log-analytics workspace create \
+    -g $RESOURCE_GROUP_NAME \
+    -n azfw-log-workspace \
+    --sku PerGB2018 \
+    --location $LOCATION \
+    --output none
+
+# Config azfw-log-workspace to azfw
+az monitor diagnostic-settings create \
+    --name "diag-azfw" \
+    --resource "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP_NAME/providers/Microsoft.Network/azureFirewalls/azfw-hub" \
+    --workspace "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP_NAME/providers/Microsoft.OperationalInsights/workspaces/azfw-log-workspace" \
+    --logs '[
+        {"category": "AzureFirewallApplicationRule", "enabled": true, "retentionPolicy": {"enabled": false, "days": 0}},
+        {"category": "AzureFirewallNetworkRule", "enabled": true, "retentionPolicy": {"enabled": false, "days": 0}},
+        {"category": "AzureFirewallDnsProxy", "enabled": true, "retentionPolicy": {"enabled": false, "days": 0}}
+    ]' \
+    --metrics '[
+        {"category": "AllMetrics", "enabled": true, "retentionPolicy": {"enabled": false, "days": 0}}
+    ]'
+
+

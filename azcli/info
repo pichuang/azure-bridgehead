@@ -1,0 +1,14 @@
+Onpremise VM 資訊
+Private IP: 192.168.1.4
+ssh repairman@70.157.64.166
+
+Spoke VM 資訊
+Private IP: 10.0.0.4
+ssh repairman@70.157.66.71
+
+Firewall 資訊
+Azure Firewall Private IP: 10.99.99.4
+
+Password for repairman
+{IiPr76T__8fb7.7Vx
+

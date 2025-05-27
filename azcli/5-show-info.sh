@@ -33,8 +33,9 @@ echo
 
 echo "Firewall 資訊"
 fwprivaddr="$(az network firewall ip-config list -g $RESOURCE_GROUP_NAME -f azfw-hub --query "[?name=='FW-config'].privateIpAddress" --output tsv)"
-echo "Private IP: $fwprivaddr"
+echo "Azure Firewall Private IP: $fwprivaddr"
 
+echo
 echo "Password for $VM_ADMIN_USERNAME"
 echo $VM_ADMIN_PASSWORD
 echo
