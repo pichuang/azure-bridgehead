@@ -13,16 +13,17 @@ fi
 az account set --subscription $SUBSCRIPTION_ID
 
 echo "Creating on-premise resources..."
-if az group exists --name $RESOURCE_GROUP_NAME; then
+if [ "$(az group exists --name $RESOURCE_GROUP_NAME)" != "false" ]; then
     echo "Resource group $RESOURCE_GROUP_NAME already exists."
 else
     echo "Creating resource group $RESOURCE_GROUP_NAME..."
     az group create --name $RESOURCE_GROUP_NAME --location $LOCATION --output none
 fi
 
-echo "Createing onprem Virtual Network..."
+echo "Creating onprem Virtual Network..."
 az network vnet create \
     --name vnet-onprem \
+    --location $LOCATION \
     --resource-group $RESOURCE_GROUP_NAME \
     --address-prefix $ONPREM_VNET_ADDRESS_PREFIX \
     --subnet-name GatewaySubnet \

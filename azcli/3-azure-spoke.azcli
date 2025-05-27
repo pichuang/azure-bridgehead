@@ -12,15 +12,15 @@ if [ -z "$SUBSCRIPTION_ID" ]; then
 fi
 az account set --subscription $SUBSCRIPTION_ID
 
-echo "Creating on-premise resources..."
-if az group exists --name $RESOURCE_GROUP_NAME; then
+echo "Creating spoke resources..."
+if [ "$(az group exists --name $RESOURCE_GROUP_NAME)" != "false" ]; then
     echo "Resource group $RESOURCE_GROUP_NAME already exists."
 else
     echo "Creating resource group $RESOURCE_GROUP_NAME..."
     az group create --name $RESOURCE_GROUP_NAME --location $LOCATION --output none
 fi
 
-echo "Createing spoke Virtual Network..."
+echo "Creating spoke Virtual Network..."
 az network vnet create \
     --name vnet-spoke \
     --resource-group $RESOURCE_GROUP_NAME \
