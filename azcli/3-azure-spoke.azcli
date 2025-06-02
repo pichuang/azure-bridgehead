@@ -153,13 +153,13 @@ az network route-table route create \
     --next-hop-type Internet \
     --output none
 
-# echo "Associate Route Table with VM subnet..."
-# az network vnet subnet update \
-#     --name snet-spoke-vm \
-#     --resource-group $RESOURCE_GROUP_NAME \
-#     --vnet-name vnet-spoke \
-#     --route-table rt-spoke \
-#     --output none
+echo "Associate Route Table with VM subnet..."
+az network vnet subnet update \
+    --name snet-spoke-vm \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --vnet-name vnet-spoke \
+    --route-table rt-spoke \
+    --output none
 
 echo "spokeise access..."
 echo "ssh $VM_ADMIN_USERNAME@$vm_public_ip"

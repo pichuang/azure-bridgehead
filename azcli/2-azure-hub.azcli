@@ -122,6 +122,23 @@ az network firewall policy create \
     --no-wait false \
     --output none
 
+# Allow outbound traffic from Azure Firewall to ifconfig.me
+az network firewall policy rule-collection-group collection rule add \
+    --policy-name azfw-policy \
+    --resource-group $RESOURCE_GROUP_NAME \
+    --rule-collection-group-name rcg-allow-outbound \
+    --name AllowOutboundToIfconfigMe \
+    --rule-name AllowOutboundToIfconfigMeRule \
+    --rule-type ApplicationRule \
+    --protocols "Any" \
+    --source-addresses "*" \
+    --destination-addresses "ifconfig.me" \
+    --destination-ports "*" \
+    --action Allow \
+    --priority 1000 \
+    --output none
+
+
 # Create Azure Firewall
 echo "Creating Azure Firewall..."
 
